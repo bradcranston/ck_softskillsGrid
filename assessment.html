@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soft Skills Assessment Input</title>
+    <style>
+      @import "./src/style.css";
+      
+      /* Additional styles for assessment input interface */
+      .assessment-form {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background: white;
+      }
+      
+      .assessment-header {
+        background: #006690;
+        color: white;
+        padding: 20px;
+        margin: 0 0 20px 0;
+        border-radius: 4px;
+      }
+      
+      .assessment-header h1 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 400;
+      }
+      
+      .assessment-section {
+        margin-bottom: 30px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      
+      .section-header {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-bottom: 1px solid #ddd;
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      
+      .section-header h3 {
+        margin: 0;
+        font-size: 18px;
+        color: #333;
+      }
+      
+      .section-toggle {
+        font-size: 14px;
+        color: #666;
+        transition: transform 0.2s;
+      }
+      
+      .section-content {
+        padding: 20px;
+        background: white;
+      }
+      
+      .section-content.collapsed {
+        display: none;
+      }
+      
+      .assessment-item {
+        margin-bottom: 25px;
+        padding: 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        background: #fafafa;
+      }
+      
+      .item-header {
+        margin-bottom: 15px;
+      }
+      
+      .item-subheader {
+        font-weight: bold;
+        color: #006690;
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+      
+      .item-question {
+        color: #555;
+        font-size: 14px;
+        line-height: 1.4;
+        margin-bottom: 15px;
+      }
+      
+      .options-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-bottom: 15px;
+      }
+      
+      .option-card {
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 15px;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+      
+      .option-card:hover {
+        border-color: #0091CE;
+        box-shadow: 0 2px 4px rgba(0,145,206,0.1);
+      }
+      
+      .option-card.selected {
+        border-color: #0091CE;
+        background: #f0f8ff;
+        box-shadow: 0 2px 8px rgba(0,145,206,0.2);
+      }
+      
+      .option-title {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 8px;
+        font-size: 15px;
+      }
+      
+      .option-description {
+        color: #666;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      
+      .radio-indicator {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #ccc;
+        border-radius: 50%;
+        background: white;
+        transition: all 0.2s ease;
+      }
+      
+      .option-card.selected .radio-indicator {
+        border-color: #0091CE;
+        background: #0091CE;
+      }
+      
+      .option-card.selected .radio-indicator::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: white;
+      }
+      
+      .text-input {
+        width: 100%;
+        min-height: 100px;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: inherit;
+        font-size: 14px;
+        resize: vertical;
+      }
+      
+      .dropdown-container {
+        display: grid;
+        grid-template-columns: 2fr 2fr 3fr 2fr;
+        gap: 15px;
+        margin-top: 10px;
+      }
+      
+      .dropdown-group {
+        display: flex;
+        flex-direction: column;
+      }
+      
+      .dropdown-label {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+        font-size: 14px;
+      }
+      
+      .dropdown-select {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      
+      .dropdown-input {
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      
+      .form-actions {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-top: 1px solid #ddd;
+        text-align: center;
+      }
+      
+      .form-actions button {
+        margin: 0 10px;
+        padding: 12px 24px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        border: none;
+      }
+      
+      .btn-primary {
+        background: #0091CE;
+        color: white;
+      }
+      
+      .btn-secondary {
+        background: #6c757d;
+        color: white;
+      }
+      
+      .btn-success {
+        background: #28a745;
+        color: white;
+      }
+      
+      .progress-indicator {
+        background: #e9ecef;
+        height: 6px;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 20px;
+      }
+      
+      .progress-bar {
+        background: #0091CE;
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+      
+      @media (max-width: 768px) {
+        .options-container {
+          grid-template-columns: 1fr;
+        }
+        
+        .dropdown-container {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-content">
+      <div class="assessment-form">
+        <div class="assessment-header">
+          <h1>Soft Skills Assessment</h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9;">Complete the assessment by selecting the appropriate level for each skill area.</p>
+        </div>
+        
+        <div class="progress-indicator">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <form id="assessmentForm">
+          <div id="assessmentSections">
+            <!-- Assessment sections will be populated dynamically -->
+          </div>
+          
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="resetForm()">Reset Form</button>
+            <button type="button" class="btn-primary" onclick="saveProgress()">Save Progress</button>
+            <button type="button" class="btn-success" onclick="submitAssessment()">Submit Assessment</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Modal for confirmation and results -->
+    <div id="resultModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span class="close" onclick="closeResultModal()">&times;</span>
+          <h2 id="resultModalTitle">Assessment Results</h2>
+        </div>
+        <div id="resultModalBody" class="modal-body">
+          <!-- Results will be displayed here -->
+        </div>
+        <div class="modal-buttons">
+          <button class="btn-primary" onclick="closeResultModal()">Close</button>
+          <button class="btn-success" onclick="exportResults()">Export Results</button>
+        </div>
+      </div>
+    </div>
+    
+    <script src="./src/assessment.js"></script>
+  </body>
+</html>

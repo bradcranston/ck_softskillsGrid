@@ -1,8 +1,7 @@
 module.exports = {
-  widgetName: "jsDev",
+  widgetName: "softskillsGrid",
   server: "$",
-  file: "jsDev",
+  file: "CK_Contact_Sandbox",
   uploadScript: "UploadToHTML",
   reloadScript: "Load Widget",
-  startDevScript: "Set to Dev Mode",
 };
