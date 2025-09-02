@@ -632,7 +632,7 @@ window.saveNote = function() {
   if (typeof runScript === 'function') {
     runScript(JSON.stringify(result));
   } else if (typeof FileMaker !== 'undefined' && typeof FileMaker.PerformScriptWithOption === 'function') {
-    FileMaker.PerformScriptWithOption("Manage: Competencies", JSON.stringify(result), 0);
+    FileMaker.PerformScriptWithOption("Manage: Soft Skills", JSON.stringify(result), 0);
   } else {
     console.error('FileMaker runScript function not available');
     alert('Note saved locally (FileMaker integration not available)');
@@ -1128,7 +1128,7 @@ function createTabulatorData(skillData, contactData, scoreData) {
 }
 
 runScript = function (param) {
-    FileMaker.PerformScriptWithOption("Manage: Competencies", param, 0);
+    FileMaker.PerformScriptWithOption("Manage: Soft Skills", param, 0);
 }
 
 // Function to update pass checkbox from FileMaker (if needed)

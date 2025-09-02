@@ -18,6 +18,14 @@
               <input type="checkbox" id="type-multiple-choice" value="Multiple Choice" checked style="transform: scale(1.1);">
               <span style="padding: 2px 8px; background: #e8f5e8; color: #2d5a2d; border-radius: 12px; font-size: 12px; font-weight: 500;">ASSESSMENT ITEMS</span>
             </label>
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+              <input type="checkbox" id="type-free-text" value="Free Text" checked style="transform: scale(1.1);">
+              <span style="padding: 2px 8px; background: #e5f1ff; color: #0056b3; border-radius: 12px; font-size: 12px; font-weight: 500;">FREE TEXT ITEMS</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+              <input type="checkbox" id="type-personal-readiness" value="Personal Readiness" checked style="transform: scale(1.1);">
+              <span style="padding: 2px 8px; background: #fff2cc; color: #856404; border-radius: 12px; font-size: 12px; font-weight: 500;">PERSONAL READINESS</span>
+            </label>
           </div>
           <button id="apply-filter-btn" onclick="applyTypeFilter()" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px;">Apply Filter</button>
         </div>
@@ -60,35 +68,51 @@
           <h2 id="scoreModalTitle">Edit Score</h2>
         </div>
         <div class="score-modal-body">
-          <!-- Previous Data Section -->
-          <div id="previousDataSection" class="previous-data-section" style="display: none;">
-            <h3 style="margin: 0 0 10px 0; color: #666; font-size: 16px;">Previous Entry:</h3>
-            <div class="previous-data-content" style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #007bff; margin-bottom: 20px;">
-              <div id="previousScore" class="previous-item">
-                <strong>Score:</strong> <span id="previousScoreValue">-</span>
-              </div>
-              <div id="previousPass" class="previous-item">
-                <!-- Pass field removed -->
-              </div>
-              <div id="previousUser" class="previous-item">
-                <strong>User:</strong> <span id="previousUserValue">-</span>
-              </div>
-              <div id="previousDate" class="previous-item">
-                <strong>Date:</strong> <span id="previousDateValue">-</span>
+          <!-- Two-column layout: Previous entries on left, new entry on right -->
+          <div style="display: flex; gap: 20px;">
+            <!-- Left Column: Previous Entries -->
+            <div id="previousDataSection" class="previous-data-section" style="flex: 1; display: none;">
+              <h3 style="margin: 0 0 10px 0; color: #666; font-size: 16px;">Previous Entries:</h3>
+              <div id="previousDataContent" style="background: #f8f9fa; padding: 12px; border-radius: 4px; border-left: 4px solid #007bff;">
+                <!-- Previous entries will be populated dynamically -->
               </div>
             </div>
-          </div>
-          
-          <!-- New Entry Section -->
-          <div class="new-entry-section">
-            <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px;">New Entry:</h3>
-            <div class="form-group">
-              <label for="scoreDate">Date:</label>
-              <input type="date" id="scoreDate" class="score-date">
-            </div>
-            <div class="form-group">
-              <label for="scoreUser">User:</label>
-              <input type="text" id="scoreUser" class="score-user">
+            
+            <!-- Right Column: New Entry Section -->
+            <div class="new-entry-section" style="flex: 1;">
+              <h3 style="margin: 0 0 15px 0; color: #333; font-size: 16px;">New Entry:</h3>
+              <div id="textEntryArea" class="form-group" style="display: none;">
+                <label for="scoreTextEntry">Entry:</label>
+                <textarea id="scoreTextEntry" class="score-text-entry" rows="4" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; resize: vertical;"></textarea>
+              </div>
+              
+              <!-- Personal Readiness Form Elements -->
+              <div id="personalReadinessArea" style="display: none;">
+                <div class="form-group">
+                  <label for="statusDropdown">Current Status:</label>
+                  <select id="statusDropdown" class="score-select" style="width: 100%;">
+                    <!-- Options will be populated dynamically -->
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label for="commentsTextarea">Comments:</label>
+                  <textarea id="commentsTextarea" class="score-text-entry" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; resize: vertical;"></textarea>
+                </div>
+                <div class="form-group">
+                  <label for="meetsStandardDropdown">Assessment:</label>
+                  <select id="meetsStandardDropdown" class="score-select" style="width: 100%;">
+                    <!-- Options will be populated dynamically -->
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label for="scoreDate">Date:</label>
+                <input type="date" id="scoreDate" class="score-date">
+              </div>
+              <div class="form-group">
+                <label for="scoreUser">User:</label>
+                <input type="text" id="scoreUser" class="score-user">
+              </div>
             </div>
           </div>
         </div>

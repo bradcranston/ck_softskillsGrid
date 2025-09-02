@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Staff/Self Functionality</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px; }
+        .test-section { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        #test-output { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; }
+    </style>
+</head>
+<body>
+    <h1>Test Staff/Self Score Display</h1>
+    
+    <div class="test-section">
+        <h3>Test Controls</h3>
+        <button onclick="loadTestData()">Load Test Data</button>
+        <button onclick="addStaffScore()">Add Staff Score</button>
+        <button onclick="addSelfScore()">Add Self Score</button>
+        <button onclick="refreshDisplay()">Refresh Display</button>
+        <button onclick="showScoreData()">Show Score Data</button>
+    </div>
+    
+    <div id="test-output"></div>
+    
+    <!-- Include the main application -->
+    <script src="src/index.js"></script>
+    
+    <script>
+        function log(message) {
+            const output = document.getElementById('test-output');
+            output.innerHTML += new Date().toLocaleTimeString() + ': ' + message + '<br>';
+        }
+        
+        function loadTestData() {
+            log('Loading test data...');
+            
+            // Create sample contacts
+            const contacts = [
+                { fieldData: { contact: "Test User 1", contact_id: "contact_1" } },
+                { fieldData: { contact: "Test User 2", contact_id: "contact_2" } }
+            ];
+            
+            // Create sample scores with both Staff and Self data
+            const scores = [
+                {
+                    fieldData: {
+                        Skill_ID: "assessment_0",
+                        Contact_ID: "contact_1",
+                        Data: "3",
+                        pass: 0,
+                        user: "Staff Member",
+                        userType: "Staff",
+                        date: "01/15/2025",
+                        zzCreatedTimestamp: "2025-01-15T10:00:00"
+                    }
+                },
+                {
+                    fieldData: {
+                        Skill_ID: "assessment_0",
+                        Contact_ID: "contact_1",
+                        Data: "2", 
+                        pass: 0,
+                        user: "Self Assessment",
+                        userType: "Self",
+                        date: "01/16/2025",
+                        zzCreatedTimestamp: "2025-01-16T14:00:00"
+                    }
+                }
+            ];
+            
+            // Load the data
+            window.loadAssessmentData(contacts, scores, "Test User", "2025-01-16", "Staff");
+            log('Test data loaded successfully');
+        }
+        
+        function addStaffScore() {
+            log('Adding Staff score...');
+            // Simulate adding a staff score
+            window.currentUserType = "Staff";
+            window.currentUser = "Staff Member 2";
+            // You can manually test by clicking on a cell and entering a score
+        }
+        
+        function addSelfScore() {
+            log('Adding Self score...');
+            // Simulate adding a self score
+            window.currentUserType = "Self";
+            window.currentUser = "Self Assessment 2";
+            // You can manually test by clicking on a cell and entering a score
+        }
+        
+        function refreshDisplay() {
+            log('Refreshing display...');
+            if (window.refreshTable) {
+                window.refreshTable();
+                log('Display refreshed');
+            } else {
+                log('refreshTable function not available');
+            }
+        }
+        
+        function showScoreData() {
+            log('Current score data: ' + (window.scoreData ? window.scoreData.substring(0, 200) + '...' : 'No data'));
+        }
+    </script>
+    
+    <!-- Include the HTML structure for the main app -->
+    <div id="contact-headers"></div>
+    <div id="skills-table"></div>
+    
+    <!-- Include modal HTML -->
+    <div id="scoreModal" style="display: none;">
+        <div class="modal-content">
+            <span class="close" onclick="closeScoreModal()">&times;</span>
+            <h2>Edit Score</h2>
+            <form id="scoreForm">
+                <div id="scoreOptions"></div>
+                <div id="scoreTextEntrySection" style="display: none;">
+                    <label>Response:</label>
+                    <textarea id="scoreTextEntry" rows="4" cols="50"></textarea>
+                </div>
+                <div id="personalReadinessSection" style="display: none;">
+                    <label>Current Status:</label>
+                    <select id="statusDropdown"></select>
+                    <label>Comments:</label>
+                    <textarea id="commentsTextarea" rows="3" cols="50"></textarea>
+                    <label>Meets Standard:</label>
+                    <select id="meetsStandardDropdown">
+                        <option value="">Select...</option>
+                        <option value="Meets Standard">Meets Standard</option>
+                        <option value="Does Not Meet Standard">Does Not Meet Standard</option>
+                    </select>
+                </div>
+                <label>Date:</label>
+                <input type="date" id="scoreDate" required>
+                <label>User:</label>
+                <input type="text" id="scoreUser" required>
+                <button type="button" class="save-btn" onclick="saveScore()">Save</button>
+                <button type="button" onclick="closeScoreModal()">Cancel</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

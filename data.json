@@ -181,18 +181,35 @@
 	},
 	{
 		"Header" : "Personal Readiness Checklist",
-		"HeaderInstruction" : "to be completed by the case manager",
-		"Option1" : "Unsatisfactory",
-		"Option2" : "Inconsistent",
-		"Option3" : "Proficient",
-		"Option4" : "Exemplary",
+		"HeaderInstruction" : "",
+		"Option1" : "Standard",
+		"Option2" : "Current Status",
+		"Option3" : "Comments",
+		"Option4" : "Level of Readiness",
 		"OptionDescription1" : "",
 		"OptionDescription2" : "",
 		"OptionDescription3" : "",
 		"OptionDescription4" : "",
-		"Question" : "",
-		"Subheader" : "In this section, the case manager evaluates the employee's personal readiness by indicating whether the employee has met each of the 5 personal readiness standards, with room for comments. These results should not shared with the employee's supervisor. If personal readiness standards are not met, the case manager should highlight areas to help obtain resources.",
-		"Type" : "Subsummary"
+		"Question" : "Housing situation is stable and there is no risk of becoming homeless",
+		"Subheader" : "Housing",
+		"Type" : "Personal Readiness",
+		"StatusOptions" : [
+			"Own a house",
+			"Have a lease in my name (apartment or house)",
+			"Live with a family member in a stable and permanent arrangement",
+			"Live with girlfriend/boyfriend in a stable and permanent arrangement",
+			"Live with girlfriend/boyfriend but am looking to get my own place",
+			"Live with friends/family in a temporary arrangement (such as couch surfing)",
+			"In transitional housing",
+			"In alternative housing and have a housing plan for release",
+			"In alternative housing but have no housing plan for release",
+			"In a shelter or emergency housing",
+			"On the streets"
+		],
+		"MeetsStandardOptions" : [
+			"Meets Standard",
+			"Does Not Meet Standard"
+		]
 	},
 	{
 		"Header" : "Personal Readiness Checklist",
@@ -201,13 +218,23 @@
 		"Option2" : "Current Status",
 		"Option3" : "Comments",
 		"Option4" : "Level of Readiness",
-		"OptionDescription1" : "Housing situation is stable and there is no risk of becoming homeless",
+		"OptionDescription1" : "",
 		"OptionDescription2" : "",
 		"OptionDescription3" : "",
 		"OptionDescription4" : "",
-		"Question" : "Housing",
-		"Subheader" : "Personal Readiness Category",
-		"Type" : "Drop Down"
+		"Question" : "Has access to consistent and affordable childcare services. Unlikely to be late or miss work due to childcare issues",
+		"Subheader" : "Childcare",
+		"Type" : "Personal Readiness",
+		"StatusOptions" : [
+			"No childcare set up",
+			"Relative, friend, or neighbor provides childcare",
+			"Stable childcare provided through daycare, community based organization, school etc.",
+			"N/A"
+		],
+		"MeetsStandardOptions" : [
+			"Meets Standard",
+			"Does Not Meet Standard"
+		]
 	},
 	{
 		"Header" : "Personal Readiness Checklist",
@@ -216,13 +243,21 @@
 		"Option2" : "Current Status",
 		"Option3" : "Comments",
 		"Option4" : "Level of Readiness",
-		"OptionDescription1" : "Has access to consistent and affordable childcare services. Unlikely to be late or miss work due to childcare issues.",
+		"OptionDescription1" : "",
 		"OptionDescription2" : "",
 		"OptionDescription3" : "",
 		"OptionDescription4" : "",
-		"Question" : "Childcare",
-		"Subheader" : "Personal Readiness Category",
-		"Type" : "Drop Down"
+		"Question" : "Physical and mental health needs are taken care and should not affect employment or performance",
+		"Subheader" : "Health",
+		"Type" : "Personal Readiness",
+		"StatusOptions" : [
+			"Current health status does not impede employment or performance. No procedures planned in near term. Enrolled with health coverage and has a primary care provider.",
+			"Current health status impedes employment and/or performance. Procedures planned in the near term. Not enrolled with health coverage / does not have a primary care provider."
+		],
+		"MeetsStandardOptions" : [
+			"Meets Standard",
+			"Does Not Meet Standard"
+		]
 	},
 	{
 		"Header" : "Personal Readiness Checklist",
@@ -231,13 +266,21 @@
 		"Option2" : "Current Status",
 		"Option3" : "Comments",
 		"Option4" : "Level of Readiness",
-		"OptionDescription1" : "Physical and mental health needs are taken care and should not affect employment or performance",
+		"OptionDescription1" : "",
 		"OptionDescription2" : "",
 		"OptionDescription3" : "",
 		"OptionDescription4" : "",
-		"Question" : "Health",
-		"Subheader" : "Personal Readiness Category",
-		"Type" : "Drop Down"
+		"Question" : "All legal issues (if any) have been resolved before seeking outside employment. Should not have to miss work to handle legal issues.",
+		"Subheader" : "Legal Status",
+		"Type" : "Personal Readiness",
+		"StatusOptions" : [
+			"Has right to work documentation necessary for employment. No warrants out for arrest. No near term court dates.",
+			"Does not have right to work documentation. Has warrants out for arrest and/or has near term court dates."
+		],
+		"MeetsStandardOptions" : [
+			"Meets Standard",
+			"Does Not Meet Standard"
+		]
 	},
 	{
 		"Header" : "Personal Readiness Checklist",
@@ -246,27 +289,25 @@
 		"Option2" : "Current Status",
 		"Option3" : "Comments",
 		"Option4" : "Level of Readiness",
-		"OptionDescription1" : "All legal issues (if any) have been resolved before seeking outside employment. Should not have to miss work to handle legal issues. ",
+		"OptionDescription1" : "",
 		"OptionDescription2" : "",
 		"OptionDescription3" : "",
 		"OptionDescription4" : "",
-		"Question" : "Legal Status",
-		"Subheader" : "Personal Readiness Category",
-		"Type" : "Drop Down"
-	},
-	{
-		"Header" : "Personal Readiness Checklist",
-		"HeaderInstruction" : "",
-		"Option1" : "Standard",
-		"Option2" : "Current Status",
-		"Option3" : "Comments",
-		"Option4" : "Level of Readiness",
-		"OptionDescription1" : "Able to get to consistently get to and from work without assistance from the social enterprise",
-		"OptionDescription2" : "",
-		"OptionDescription3" : "",
-		"OptionDescription4" : "",
-		"Question" : "Transportation",
-		"Subheader" : "Personal Readiness Category",
-		"Type" : "Drop Down"
+		"Question" : "Able to get to consistently get to and from work without assistance from the social enterprise",
+		"Subheader" : "Transportation",
+		"Type" : "Personal Readiness",
+		"StatusOptions" : [
+			"Has driver's license and access to car for daily commute",
+			"Has driver's license, but does not have access to or can afford a car",
+			"Reliant on public transit, but able to provide for daily commute",
+			"Reliant on public transit and in need of bus passes/tokens for daily commute",
+			"Has outstanding tickets or does not have valid driver's license",
+			"Able to walk to work",
+			"No Means of Transport.  Is not able to get to work."
+		],
+		"MeetsStandardOptions" : [
+			"Meets Standard",
+			"Does Not Meet Standard"
+		]
 	}
 ]

@@ -4,7 +4,8 @@ window.contactData = null;
 window.scoreData = null;
 window.currentUser = "Current User";
 window.currentDate = "Current Date";
-window.selectedTypes = ['Multiple Choice']; // Changed from selectedLevels to selectedTypes
+window.currentUserType = "Staff"; // Default to 'Staff'
+window.selectedTypes = ['Multiple Choice', 'Free Text', 'Personal Readiness']; // Include all types
 
 // Global variables for modal state
 window.currentGroupName = '';
@@ -17,6 +18,7 @@ window.currentSkillName = '';
 window.currentSkillId = '';
 window.currentScoreContactId = '';
 window.currentScoreContactName = '';
+window.currentSkillHeader = '';
 
 // Helper function to safely parse JSON with detailed error reporting
 function safeJSONParse(jsonString, paramName) {
@@ -46,12 +48,13 @@ function safeJSONParse(jsonString, paramName) {
 }
 
 // Main function called from FileMaker to load the table
-window.loadTable = (assessmentData, contactData, scoreData, user, date) => {
-  console.log('loadTable called with user:', user);
+window.loadTable = (assessmentData, contactData, scoreData, user, date, userType) => {
+  console.log('loadTable called with user:', user, 'userType:', userType);
   console.log('Raw parameters received:');
   console.log('  assessmentData type:', typeof assessmentData, 'length:', assessmentData?.length);
   console.log('  contactData type:', typeof contactData, 'length:', contactData?.length);
   console.log('  scoreData type:', typeof scoreData, 'length:', scoreData?.length);
+  console.log('  userType:', userType);
   
   // Store data globally
   window.skillData = assessmentData; // Using assessmentData instead of skillData
@@ -59,8 +62,10 @@ window.loadTable = (assessmentData, contactData, scoreData, user, date) => {
   window.scoreData = scoreData;
   window.currentUser = user || "Current User";
   window.currentDate = date || "Current Date";
+  window.currentUserType = userType || "Staff"; // Default to 'Staff' if not provided
 
   console.log('window.currentUser set to:', window.currentUser);
+  console.log('window.currentUserType set to:', window.currentUserType);
   
   try {
     // Parse the data with error handling
@@ -92,7 +97,7 @@ window.loadTable = (assessmentData, contactData, scoreData, user, date) => {
 };
 
 // Test function to load assessment data from data.json
-window.loadAssessmentData = async function(contactData = null, scoreData = null, user = "Test User", date = null) {
+window.loadAssessmentData = async function(contactData = null, scoreData = null, user = "Test User", date = null, userType = "Staff") {
   try {
     // Load the assessment data from data.json
     const response = await fetch('./data.json');
@@ -139,7 +144,8 @@ window.loadAssessmentData = async function(contactData = null, scoreData = null,
       JSON.stringify(contacts),
       JSON.stringify(scores),
       user,
-      currentDate
+      currentDate,
+      userType
     );
     
   } catch (error) {
@@ -202,8 +208,13 @@ function createTable(assessmentItems, contacts, scores) {
 // Function to group assessment items by header and prepare data
 function groupAssessmentsByHeader(assessmentItems, contacts, scores) {
   // Filter assessment items to only include selected types and scoreable items
+  // Handle special cases for Free Text and Personal Readiness types
   const scoreableItems = assessmentItems.filter(item => 
-    window.selectedTypes.includes(item.Type) && item.Subheader && item.Question
+    window.selectedTypes.includes(item.Type) && (
+      (item.Type === 'Free Text' && item.Header) || // Include Free Text items based on Header
+      (item.Type === 'Personal Readiness' && item.Header) || // Include Personal Readiness items based on header only
+      (item.Subheader && item.Question) // Include regular items with Subheader and Question
+    )
   );
   
   // Group by header
@@ -218,8 +229,8 @@ function groupAssessmentsByHeader(assessmentItems, contacts, scores) {
     // Prepare assessment item data with scores
     const itemData = {
       id: `assessment_${index}`, // Generate unique ID
-      skill: item.Subheader, // Use subheader as skill name
-      description: item.Question, // Use question as description
+      skill: item.Subheader || item.Question || item.Header, // Use subheader/question as skill name, fallback to header
+      description: item.Question || item.HeaderInstruction, // Use question as description, fallback to header instruction
       header: header,
       type: item.Type,
       options: {
@@ -228,39 +239,97 @@ function groupAssessmentsByHeader(assessmentItems, contacts, scores) {
         option3: { title: item.Option3, description: item.OptionDescription3 },
         option4: { title: item.Option4, description: item.OptionDescription4 }
       },
+      // Include Personal Readiness specific properties if they exist
+      StatusOptions: item.StatusOptions || [],
+      MeetsStandardOptions: item.MeetsStandardOptions || [],
       scores: {}
     };
     
     // Add scores for each contact
     contacts.forEach(contact => {
       const contactId = contact.fieldData.contact_id;
-      const scoreEntry = scores.find(score => 
-        score.fieldData.Assessment_Item_ID === `assessment_${index}` && 
-        score.fieldData.Contact_ID === contactId
+      
+      // Find all score entries for this contact and skill
+      const allScoreEntries = scores.filter(score => {
+        const scoreSkillId = score.fieldData.Skill_ID || score.fieldData.skillId;
+        const scoreContactId = score.fieldData.Contact_ID || score.fieldData.contact_id;
+        return scoreSkillId === `assessment_${index}` && scoreContactId === contactId;
+      });
+      
+      // Separate Staff and Self scores
+      const staffScores = allScoreEntries.filter(score => 
+        (score.fieldData.userType === 'Staff') || (!score.fieldData.userType) // Include legacy scores without userType as Staff
+      );
+      const selfScores = allScoreEntries.filter(score => 
+        score.fieldData.userType === 'Self'
       );
       
-      if (scoreEntry) {
-        const rawScore = scoreEntry.fieldData.Score;
+      // Get most recent scores for each type
+      const getMostRecentScore = (scoresList) => {
+        if (scoresList.length === 0) return null;
+        
+        // Sort by timestamp (most recent first)
+        const sorted = scoresList.sort((a, b) => {
+          const dateA = new Date(a.fieldData.zzCreatedTimestamp || '1970-01-01');
+          const dateB = new Date(b.fieldData.zzCreatedTimestamp || '1970-01-01');
+          return dateB - dateA;
+        });
+        
+        return sorted[0];
+      };
+      
+      const mostRecentStaff = getMostRecentScore(staffScores);
+      const mostRecentSelf = getMostRecentScore(selfScores);
+      
+      // Determine which score to display primarily (most recent overall)
+      let primaryScore = null;
+      if (mostRecentStaff && mostRecentSelf) {
+        const staffDate = new Date(mostRecentStaff.fieldData.zzCreatedTimestamp || '1970-01-01');
+        const selfDate = new Date(mostRecentSelf.fieldData.zzCreatedTimestamp || '1970-01-01');
+        primaryScore = staffDate >= selfDate ? mostRecentStaff : mostRecentSelf;
+      } else {
+        primaryScore = mostRecentStaff || mostRecentSelf;
+      }
+      
+      if (primaryScore) {
+        const rawScore = primaryScore.fieldData.Data || primaryScore.fieldData.Score;
         const scoreValue = (rawScore === null || rawScore === undefined) ? "-" : rawScore;
-        const passValue = scoreEntry.fieldData.pass;
+        const passValue = primaryScore.fieldData.pass;
         const isPass = passValue === true || passValue === "true" || passValue === 1 || passValue === "1";
         
         itemData.scores[contactId] = {
           value: scoreValue,
           pass: isPass,
+          userType: primaryScore.fieldData.userType || 'Staff',
           metadata: {
-            author: scoreEntry.fieldData.user || scoreEntry.fieldData.zzCreatedAcct || '',
-            lastUpdated: scoreEntry.fieldData.date || '',
-            editableDate: formatDate(scoreEntry.fieldData.date || scoreEntry.fieldData.zzCreatedTimestamp || ''),
-            zzCreatedName: scoreEntry.fieldData.zzCreatedName || '',
-            zzCreatedTimestamp: scoreEntry.fieldData.zzCreatedTimestamp || ''
-          }
+            author: primaryScore.fieldData.user || primaryScore.fieldData.zzCreatedAcct || '',
+            lastUpdated: primaryScore.fieldData.date || '',
+            editableDate: formatDate(primaryScore.fieldData.date || primaryScore.fieldData.zzCreatedTimestamp || ''),
+            zzCreatedName: primaryScore.fieldData.zzCreatedName || '',
+            zzCreatedTimestamp: primaryScore.fieldData.zzCreatedTimestamp || ''
+          },
+          // Include both Staff and Self data if available
+          staffData: mostRecentStaff ? {
+            value: mostRecentStaff.fieldData.Data || mostRecentStaff.fieldData.Score,
+            user: mostRecentStaff.fieldData.user || mostRecentStaff.fieldData.zzCreatedAcct || '',
+            date: formatDate(mostRecentStaff.fieldData.date || mostRecentStaff.fieldData.zzCreatedTimestamp || ''),
+            timestamp: mostRecentStaff.fieldData.zzCreatedTimestamp || ''
+          } : null,
+          selfData: mostRecentSelf ? {
+            value: mostRecentSelf.fieldData.Data || mostRecentSelf.fieldData.Score,
+            user: mostRecentSelf.fieldData.user || mostRecentSelf.fieldData.zzCreatedAcct || '',
+            date: formatDate(mostRecentSelf.fieldData.date || mostRecentSelf.fieldData.zzCreatedTimestamp || ''),
+            timestamp: mostRecentSelf.fieldData.zzCreatedTimestamp || ''
+          } : null
         };
       } else {
         itemData.scores[contactId] = {
           value: "-",
           pass: false,
-          metadata: null
+          userType: null,
+          metadata: null,
+          staffData: null,
+          selfData: null
         };
       }
     });
@@ -452,21 +521,129 @@ function createSkillRow(item, contacts) {
       scoreData.pass, 
       scoreData.metadata,
       item.description, // Add the question/description
-      item.options // Add the scoring options
+      item.options, // Add the scoring options
+      item.type, // Add the field type
+      item // Pass the entire item for additional properties
     );
     
     // Create score value
     const scoreValue = document.createElement('div');
     scoreValue.className = 'score-value';
-    scoreValue.textContent = scoreData.value;
+    
+    // Handle different score display based on type
+    if (item.type === 'Personal Readiness') {
+      // Check if we have both Staff and Self scores for Personal Readiness
+      if (scoreData.staffData && scoreData.selfData) {
+        let staffDisplay = '-';
+        let selfDisplay = '-';
+        
+        // Parse Staff data
+        try {
+          const staffParsed = JSON.parse(scoreData.staffData.value);
+          if (staffParsed && staffParsed.status) {
+            staffDisplay = `${staffParsed.status} (${staffParsed.meetsStandard || ''})`;
+          }
+        } catch (e) {
+          staffDisplay = scoreData.staffData.value || '-';
+        }
+        
+        // Parse Self data
+        try {
+          const selfParsed = JSON.parse(scoreData.selfData.value);
+          if (selfParsed && selfParsed.status) {
+            selfDisplay = `${selfParsed.status} (${selfParsed.meetsStandard || ''})`;
+          }
+        } catch (e) {
+          selfDisplay = scoreData.selfData.value || '-';
+        }
+        
+        scoreValue.innerHTML = `
+          <div style="display: flex; flex-direction: column; align-items: center; font-size: 10px;">
+            <div style="margin-bottom: 2px; text-align: center;">
+              <div style="font-weight: bold;">Staff:</div>
+              <div>${staffDisplay}</div>
+            </div>
+            <div style="text-align: center;">
+              <div style="font-weight: bold;">Self:</div>
+              <div>${selfDisplay}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Single Personal Readiness score
+        try {
+          // Try to parse JSON data for Personal Readiness
+          const parsedData = JSON.parse(scoreData.value);
+          // Format display to show status and meets standard
+          if (parsedData && parsedData.status) {
+            scoreValue.innerHTML = `
+              <div style="font-weight: bold; margin-bottom: 3px;">${parsedData.status}</div>
+              <div style="font-size: 11px; padding: 2px 6px; border-radius: 10px; display: inline-block; ${
+                parsedData.meetsStandard === 'Meets Standard' 
+                  ? 'background-color: #d4edda; color: #155724;' 
+                  : 'background-color: #f8d7da; color: #721c24;'
+              }">${parsedData.meetsStandard || ''}</div>
+            `;
+          } else {
+            scoreValue.textContent = '-';
+          }
+        } catch (e) {
+          // If parsing fails, show original value
+          scoreValue.textContent = scoreData.value || '-';
+        }
+      }
+    } else {
+      // Regular score display - show both Staff and Self scores if available
+      if (scoreData.staffData && scoreData.selfData) {
+        // Both Staff and Self scores available - display both
+        scoreValue.innerHTML = `
+          <div style="display: flex; flex-direction: column; align-items: center;">
+            <div style="margin-bottom: 2px;">
+              <span style="font-size: 10px; font-weight: bold;">Staff:</span> 
+              <span style="font-size: 10px; font-weight: bold;">${scoreData.staffData.value}</span>
+            </div>
+            <div>
+              <span style="font-size: 10px; font-weight: bold;">Self:</span> 
+              <span style="font-size: 10px; font-weight: bold;">${scoreData.selfData.value}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // Only one type available - show the single score
+        scoreValue.textContent = scoreData.value;
+      }
+    }
     
     // Create metadata if available
     const metadataDiv = document.createElement('div');
     metadataDiv.className = 'score-metadata';
-    if (scoreData.value !== "-" && scoreData.metadata) {
-      const author = scoreData.metadata.author || '';
-      const date = scoreData.metadata.editableDate || '';
-      metadataDiv.innerHTML = `${author}<br><span>${date}</span>`;
+    if (scoreData.value !== "-" && (scoreData.staffData || scoreData.selfData)) {
+      let metadataHTML = '';
+      
+      // Show Staff data if available
+      if (scoreData.staffData) {
+        metadataHTML += `<div style="margin-bottom: 2px;">
+          <strong>Staff:</strong> ${scoreData.staffData.user}<br>
+          <span>${scoreData.staffData.date}</span>
+        </div>`;
+      }
+      
+      // Show Self data if available
+      if (scoreData.selfData) {
+        metadataHTML += `<div style="margin-bottom: 2px;">
+          <strong>Self:</strong> ${scoreData.selfData.user}<br>
+          <span>${scoreData.selfData.date}</span>
+        </div>`;
+      }
+      
+      // If we only have one type, fall back to the original metadata format
+      if (!scoreData.staffData && !scoreData.selfData && scoreData.metadata) {
+        const author = scoreData.metadata.author || '';
+        const date = scoreData.metadata.editableDate || '';
+        metadataHTML = `${author}<br><span>${date}</span>`;
+      }
+      
+      metadataDiv.innerHTML = metadataHTML;
     }
     
     // Pass indicator removed as we no longer use the pass checkbox
@@ -513,13 +690,15 @@ window.setCurrentUser = function(userName) {
 };
 
 // Score Modal functions
-window.openScoreModal = function(skillName, contactName, skillId, contactId, currentScore, passValue, metadata, questionText, options) {
-  console.log('openScoreModal called with:', { skillName, contactName, skillId, contactId, currentScore, passValue, metadata, questionText, options });
+window.openScoreModal = function(skillName, contactName, skillId, contactId, currentScore, passValue, metadata, questionText, options, fieldType, item) {
+  console.log('openScoreModal called with:', { skillName, contactName, skillId, contactId, currentScore, passValue, metadata, questionText, options, fieldType, item });
   
   window.currentSkillName = skillName;
   window.currentSkillId = skillId;
   window.currentScoreContactId = contactId;
   window.currentScoreContactName = contactName;
+  window.currentFieldType = fieldType || 'Multiple Choice';
+  window.currentSkillHeader = item ? item.header : '';
   
   // Set modal title with question text
   const modalTitle = `Edit Score - ${skillName} - ${contactName}`;
@@ -555,20 +734,129 @@ window.openScoreModal = function(skillName, contactName, skillId, contactId, cur
   
   // Handle previous data display
   const previousDataSection = document.getElementById('previousDataSection');
-  if (metadata && currentScore !== "-") {
+  const previousDataContent = document.getElementById('previousDataContent');
+  
+  // Check if there are any existing scores (Staff or Self)
+  const hasStaffData = item && item.scores && item.scores[contactId] && item.scores[contactId].staffData;
+  const hasSelfData = item && item.scores && item.scores[contactId] && item.scores[contactId].selfData;
+  
+  if (hasStaffData || hasSelfData) {
     // Show previous data section
     previousDataSection.style.display = 'block';
-    document.getElementById('previousScoreValue').textContent = currentScore || '-';
-    // Previous pass value display removed as we no longer use pass checkbox
-    document.getElementById('previousUserValue').textContent = metadata.author || '-';
-    document.getElementById('previousDateValue').textContent = metadata.editableDate || '-';
+    
+    let previousHTML = '';
+    
+    // Display Staff data if available
+    if (hasStaffData) {
+      const staffData = item.scores[contactId].staffData;
+      previousHTML += `
+        <div style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #dee2e6;">
+          <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 14px; font-weight: bold;">Staff Assessment:</h4>
+          <div style="margin-bottom: 4px;"><strong>Score:</strong> ${staffData.value || '-'}</div>
+          <div style="margin-bottom: 4px;"><strong>User:</strong> ${staffData.user || '-'}</div>
+          <div><strong>Date:</strong> ${staffData.date || '-'}</div>
+        </div>
+      `;
+    }
+    
+    // Display Self data if available
+    if (hasSelfData) {
+      const selfData = item.scores[contactId].selfData;
+      previousHTML += `
+        <div style="margin-bottom: 15px;">
+          <h4 style="margin: 0 0 8px 0; color: #495057; font-size: 14px; font-weight: bold;">Self Assessment:</h4>
+          <div style="margin-bottom: 4px;"><strong>Score:</strong> ${selfData.value || '-'}</div>
+          <div style="margin-bottom: 4px;"><strong>User:</strong> ${selfData.user || '-'}</div>
+          <div><strong>Date:</strong> ${selfData.date || '-'}</div>
+        </div>
+      `;
+    }
+    
+    previousDataContent.innerHTML = previousHTML;
   } else {
-    // Hide previous data section if no previous entry
+    // Hide previous data section if no previous entries
     previousDataSection.style.display = 'none';
   }
   
-  // Create or update score options buttons
-  createScoreOptionsButtons(options, currentScore);
+  // Show/hide elements based on field type
+  const textEntryArea = document.getElementById('textEntryArea');
+  const personalReadinessArea = document.getElementById('personalReadinessArea');
+  const scoreOptionsDiv = document.getElementById('scoreOptionsDiv') || document.createElement('div');
+  
+  // Handle different field types
+  if (window.currentFieldType === 'Free Text') {
+    // Show text entry, hide score options and personal readiness
+    textEntryArea.style.display = 'block';
+    personalReadinessArea.style.display = 'none';
+    if (scoreOptionsDiv.parentNode) scoreOptionsDiv.style.display = 'none';
+    
+    // Set current text value if available
+    document.getElementById('scoreTextEntry').value = currentScore !== '-' ? currentScore : '';
+  } else if (window.currentFieldType === 'Personal Readiness') {
+    // Show personal readiness, hide text entry and score options
+    textEntryArea.style.display = 'none';
+    personalReadinessArea.style.display = 'block';
+    if (scoreOptionsDiv.parentNode) scoreOptionsDiv.style.display = 'none';
+    
+    // Populate dropdowns with options
+    const statusDropdown = document.getElementById('statusDropdown');
+    const meetsStandardDropdown = document.getElementById('meetsStandardDropdown');
+    
+    // Clear existing options
+    statusDropdown.innerHTML = '';
+    meetsStandardDropdown.innerHTML = '';
+    
+    // Add empty option
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = '-- Select an option --';
+    statusDropdown.appendChild(emptyOption);
+    
+    // Add empty option for standard
+    const emptyStandardOption = document.createElement('option');
+    emptyStandardOption.value = '';
+    emptyStandardOption.textContent = '-- Select an option --';
+    meetsStandardDropdown.appendChild(emptyStandardOption);
+    
+    // Get item-specific options if available
+    if (item && item.StatusOptions) {
+      item.StatusOptions.forEach(option => {
+        const optionEl = document.createElement('option');
+        optionEl.value = option;
+        optionEl.textContent = option;
+        statusDropdown.appendChild(optionEl);
+      });
+    }
+    
+    if (item && item.MeetsStandardOptions) {
+      item.MeetsStandardOptions.forEach(option => {
+        const optionEl = document.createElement('option');
+        optionEl.value = option;
+        optionEl.textContent = option;
+        meetsStandardDropdown.appendChild(optionEl);
+      });
+    }
+    
+    // Parse current score data and set form values if available
+    if (currentScore && currentScore !== '-') {
+      try {
+        const scoreData = JSON.parse(currentScore);
+        statusDropdown.value = scoreData.status || '';
+        document.getElementById('commentsTextarea').value = scoreData.comments || '';
+        meetsStandardDropdown.value = scoreData.meetsStandard || '';
+      } catch (e) {
+        console.error('Error parsing Personal Readiness score data:', e);
+      }
+    }
+  } else {
+    // Show score options, hide text entry and personal readiness
+    textEntryArea.style.display = 'none';
+    personalReadinessArea.style.display = 'none';
+    if (scoreOptionsDiv.parentNode) scoreOptionsDiv.style.display = 'block';
+    
+    // Create or update score options buttons
+    createScoreOptionsButtons(options, currentScore);
+  }
   
   // Pass checkbox has been removed
   
@@ -755,7 +1043,36 @@ window.closeScoreModal = function() {
 };
 
 window.saveScore = function() {
-  const score = window.selectedScore || '-'; // Use the selected score from buttons
+  // Get score based on field type
+  let score;
+  if (window.currentFieldType === 'Free Text') {
+    score = document.getElementById('scoreTextEntry').value.trim();
+  } else if (window.currentFieldType === 'Personal Readiness') {
+    const status = document.getElementById('statusDropdown').value;
+    const comments = document.getElementById('commentsTextarea').value;
+    const meetsStandard = document.getElementById('meetsStandardDropdown').value;
+    
+    // Validate inputs for Personal Readiness
+    if (!status) {
+      alert('Please select a current status.');
+      return;
+    }
+    
+    if (!meetsStandard) {
+      alert('Please select whether this meets the standard.');
+      return;
+    }
+    
+    // Create a JSON object to store as the score
+    score = JSON.stringify({
+      status,
+      comments,
+      meetsStandard
+    });
+  } else {
+    score = window.selectedScore || '-'; // Use the selected score from buttons
+  }
+  
   const date = document.getElementById('scoreDate').value;
   const user = document.getElementById('scoreUser').value;
   
@@ -776,12 +1093,22 @@ window.saveScore = function() {
   let displayDate = date;
   if (date) {
     try {
-      const dateObj = new Date(date);
-      displayDate = dateObj.toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit', 
-        year: 'numeric'
-      });
+      // Parse the date as local date to avoid timezone issues
+      const parts = date.split('-'); // date format is YYYY-MM-DD from HTML date input
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+        const day = parseInt(parts[2], 10);
+        const dateObj = new Date(year, month, day);
+        displayDate = dateObj.toLocaleDateString('en-US', {
+          month: '2-digit',
+          day: '2-digit', 
+          year: 'numeric'
+        });
+      } else {
+        // Fallback for other date formats
+        displayDate = date;
+      }
     } catch (e) {
       displayDate = date;
     }
@@ -791,7 +1118,7 @@ window.saveScore = function() {
     skill: window.currentSkillId, 
     contact: window.currentScoreContactId, 
     score, 
-    pass, 
+    userType: window.currentUserType,
     date: displayDate, 
     user 
   });
@@ -800,10 +1127,13 @@ window.saveScore = function() {
   const updateResult = {
     "conId": window.currentScoreContactId,
     "skillId": window.currentSkillId,
+    "skillName": window.currentSkillName,
+    "skillHeader": window.currentSkillHeader,
     "value": score,
     "pass": false, // We're not using the pass checkbox anymore
     "mode": 'updateScore',
     "user": user,
+    "userType": window.currentUserType, // Add userType to the data sent to FileMaker
     "date": displayDate,
     "timestamp": new Date().toISOString()
   };
@@ -821,7 +1151,7 @@ window.saveScore = function() {
     console.log('Data sent to FileMaker successfully');
     
     // Update the local data immediately for UI responsiveness
-    updateLocalScoreData(window.currentScoreContactId, window.currentSkillId, score, pass, displayDate);
+    updateLocalScoreData(window.currentScoreContactId, window.currentSkillId, score, false, displayDate, user);
     
     // Show success briefly before closing
     saveBtn.textContent = 'Saved ✓';
@@ -835,11 +1165,11 @@ window.saveScore = function() {
       saveBtn.style.background = '';
     }, 500);
   } else if (typeof FileMaker !== 'undefined' && typeof FileMaker.PerformScriptWithOption === 'function') {
-    FileMaker.PerformScriptWithOption("Manage: Competencies", JSON.stringify(updateResult), 0);
+    FileMaker.PerformScriptWithOption("Manage: Soft Skills", JSON.stringify(updateResult), 0);
     console.log('Data sent to FileMaker successfully via PerformScriptWithOption');
     
     // Update the local data immediately for UI responsiveness
-    updateLocalScoreData(window.currentScoreContactId, window.currentSkillId, score, pass, displayDate);
+    updateLocalScoreData(window.currentScoreContactId, window.currentSkillId, score, false, displayDate, user);
     
     // Show success briefly before closing
     saveBtn.textContent = 'Saved ✓';
@@ -856,7 +1186,7 @@ window.saveScore = function() {
     console.error('FileMaker runScript function not available');
     
     // Update the local data for testing without FileMaker
-    updateLocalScoreData(window.currentScoreContactId, window.currentSkillId, score, pass, displayDate);
+    updateLocalScoreData(window.currentScoreContactId, window.currentSkillId, score, false, displayDate, user);
     
     alert('Score saved locally (FileMaker integration not available)');
     
@@ -905,7 +1235,7 @@ window.loadExistingNotes = function(groupName, contactId) {
   if (typeof runScript === 'function') {
     runScript(JSON.stringify(result));
   } else if (typeof FileMaker !== 'undefined' && typeof FileMaker.PerformScriptWithOption === 'function') {
-    FileMaker.PerformScriptWithOption("Manage: Competencies", JSON.stringify(result), 0);
+    FileMaker.PerformScriptWithOption("Manage: Soft Skills", JSON.stringify(result), 0);
   } else {
     console.log('FileMaker integration not available, showing sample notes');
     // For testing without FileMaker - use the actual data structure
@@ -1011,7 +1341,7 @@ window.saveNote = function() {
   if (typeof runScript === 'function') {
     runScript(JSON.stringify(result));
   } else if (typeof FileMaker !== 'undefined' && typeof FileMaker.PerformScriptWithOption === 'function') {
-    FileMaker.PerformScriptWithOption("Manage: Competencies", JSON.stringify(result), 0);
+    FileMaker.PerformScriptWithOption("Manage: Soft Skills", JSON.stringify(result), 0);
   } else {
     console.error('FileMaker runScript function not available');
     alert('Note saved locally (FileMaker integration not available)');
@@ -1024,26 +1354,32 @@ window.saveNote = function() {
 };
 
 // Function to update local score data and refresh display
-function updateLocalScoreData(contactId, skillId, scoreValue, passValue, displayDate) {
+function updateLocalScoreData(contactId, skillId, scoreValue, passValue, displayDate, user = null) {
   if (window.skillData && window.contactData && window.scoreData) {
     // Update the score data
     const scores = JSON.parse(window.scoreData);
-    let scoreEntry = scores.find(score => 
-      score.fieldData.Skill_ID === skillId && 
-      score.fieldData.Contact_ID === contactId
-    );
     
-    // Use window.currentUser instead of any user input for consistency
-    const actualUser = window.currentUser || "Current User";
+    // Use provided user or fall back to window.currentUser
+    const actualUser = user || window.currentUser || "Current User";
+    const actualUserType = window.currentUserType || "Staff";
+    
+    // Find existing entry for this specific contact, skill, and userType
+    let scoreEntry = scores.find(score => {
+      const scoreSkillId = score.fieldData.Skill_ID || score.fieldData.skillId;
+      const scoreContactId = score.fieldData.Contact_ID || score.fieldData.contact_id;
+      const scoreUserType = score.fieldData.userType;
+      return scoreSkillId === skillId && scoreContactId === contactId && scoreUserType === actualUserType;
+    });
     
     if (scoreEntry) {
       // Update existing entry
       scoreEntry.fieldData.Data = scoreValue;
       scoreEntry.fieldData.pass = passValue ? 1 : 0;
-      scoreEntry.fieldData.user = actualUser; // Use window.currentUser
+      scoreEntry.fieldData.user = actualUser;
+      scoreEntry.fieldData.userType = actualUserType;
       scoreEntry.fieldData.date = displayDate;
       scoreEntry.fieldData.zzCreatedTimestamp = new Date().toLocaleString('en-US');
-      scoreEntry.fieldData.zzCreatedAcct = actualUser; // Also update created account
+      scoreEntry.fieldData.zzCreatedAcct = actualUser;
     } else {
       // Create new entry
       scoreEntry = {
@@ -1052,10 +1388,11 @@ function updateLocalScoreData(contactId, skillId, scoreValue, passValue, display
           Contact_ID: contactId,
           Data: scoreValue,
           pass: passValue ? 1 : 0,
-          user: actualUser, // Use window.currentUser
+          user: actualUser,
+          userType: actualUserType,
           date: displayDate,
-          zzCreatedAcct: actualUser, // Use window.currentUser
-          zzCreatedName: actualUser, // Use window.currentUser
+          zzCreatedAcct: actualUser,
+          zzCreatedName: actualUser,
           zzCreatedTimestamp: new Date().toLocaleString('en-US')
         }
       };
@@ -1068,7 +1405,7 @@ function updateLocalScoreData(contactId, skillId, scoreValue, passValue, display
     // Refresh the table display
     window.refreshTable();
     
-    console.log('Local score data updated with window.currentUser:', actualUser);
+    console.log('Local score data updated with user:', actualUser, 'userType:', actualUserType);
   }
 }
 
@@ -1084,7 +1421,7 @@ window.refreshTable = function() {
 
 // FileMaker integration function (same as original)
 runScript = function (param) {
-  FileMaker.PerformScriptWithOption("Manage: Competencies", param, 0);
+  FileMaker.PerformScriptWithOption("Manage: Soft Skills", param, 0);
 };
 
 // Function to update pass checkbox from FileMaker (if needed)
@@ -1096,10 +1433,11 @@ window.updatePassCheckbox = function(contactId, skillId, passValue) {
   if (window.skillData && window.contactData && window.scoreData) {
     // Update the score data
     const scores = JSON.parse(window.scoreData);
-    const scoreEntry = scores.find(score => 
-      score.fieldData.Skill_ID === skillId && 
-      score.fieldData.Contact_ID === contactId
-    );
+    const scoreEntry = scores.find(score => {
+      const scoreSkillId = score.fieldData.Skill_ID || score.fieldData.skillId;
+      const scoreContactId = score.fieldData.Contact_ID || score.fieldData.contact_id;
+      return scoreSkillId === skillId && scoreContactId === contactId;
+    });
     
     if (scoreEntry) {
       scoreEntry.fieldData.pass = false; // Always set to false since we removed the checkbox
@@ -1118,10 +1456,11 @@ window.updateScore = function(contactId, skillId, scoreValue) {
   if (window.skillData && window.contactData && window.scoreData) {
     // Update the score data
     const scores = JSON.parse(window.scoreData);
-    const scoreEntry = scores.find(score => 
-      score.fieldData.Skill_ID === skillId && 
-      score.fieldData.Contact_ID === contactId
-    );
+    const scoreEntry = scores.find(score => {
+      const scoreSkillId = score.fieldData.Skill_ID || score.fieldData.skillId;
+      const scoreContactId = score.fieldData.Contact_ID || score.fieldData.contact_id;
+      return scoreSkillId === skillId && scoreContactId === contactId;
+    });
     
     if (scoreEntry) {
       scoreEntry.fieldData.Data = scoreValue; // Note: 'Data' field, not 'Score'
